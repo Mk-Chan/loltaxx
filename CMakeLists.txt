@@ -5,7 +5,6 @@ project(app)
 ###
 # Find packages
 ###
-find_package(spdlog CONFIG REQUIRED)
 find_package(Catch2 CONFIG REQUIRED)
 ###
 
@@ -50,7 +49,7 @@ add_executable(
     app
     app/main.cpp
 )
-target_link_libraries(app PRIVATE spdlog::spdlog)
+target_link_libraries(app PRIVATE)
 
 # app_test
 add_executable(
