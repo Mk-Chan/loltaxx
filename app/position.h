@@ -64,8 +64,8 @@ class Position {
         Bitboard us = piece_bb_[side_to_move_];
         Bitboard them = piece_bb_[!side_to_move_];
 
-        Bitboard put_piece_bb = us.adjacent();
-        Bitboard move_piece_bb = us.jumps();
+        Bitboard put_piece_bb = us.adjacent() & ~gaps_;
+        Bitboard move_piece_bb = us.jumps() & ~gaps_;
         Bitboard opponent_capture_bb = them.adjacent();
 
         Bitboard capture_put_bb = put_piece_bb & opponent_capture_bb;
@@ -93,6 +93,8 @@ class Position {
                 move_list.add(Move{from, to, Move::IsCapture::FALSE});
             }
         }
+
+        return move_list;
     }
 
    protected:
