@@ -19,6 +19,7 @@ class Bitboard {
 
    public:
     using value_type = std::uint64_t;
+
     constexpr Bitboard() : value_(0) {
     }
     constexpr explicit Bitboard(int shift) : value_(std::uint64_t(1) << shift) {
@@ -115,27 +116,18 @@ class Bitboard {
     [[nodiscard]] constexpr Bitboard west() const {
         return (*this >> 1) & Bitboard{BB_FULL_SANS_FILE_G};
     }
-    [[nodiscard]] constexpr Bitboard north_east() const {
-        return (*this << 8) & Bitboard{BB_FULL_SANS_FILE_A};
-    }
-    [[nodiscard]] constexpr Bitboard north_west() const {
-        return (*this << 6) & Bitboard{BB_FULL_SANS_FILE_G};
-    }
-    [[nodiscard]] constexpr Bitboard south_east() const {
-        return (*this >> 6) & Bitboard{BB_FULL_SANS_FILE_A};
-    }
-    [[nodiscard]] constexpr Bitboard south_west() const {
-        return (*this >> 8) & Bitboard{BB_FULL_SANS_FILE_G};
-    }
 
     [[nodiscard]] constexpr Bitboard adjacent() const {
-        return north() | south() | east() | west() | north_east() | north_west() | south_east() |
-               south_west();
+        return north() | south() | east() | west() | north().east() | north().west() |
+               south().east() | south().west();
     }
     [[nodiscard]] constexpr Bitboard jumps() const {
-        return north().north() | south().south() | east().east() | west().west() |
-               north_east().north_east() | north_west().north_west() | south_east().south_east() |
-               south_west().south_west();
+        return north().north() | north().north().east() | north().north().west() | south().south() |
+               south().south().east() | south().south().west() | east().east() |
+               east().north().east() | east().south().east() | west().west() |
+               west().north().west() | west().south().west() | north().east().north().east() |
+               north().west().north().west() | south().east().south().east() |
+               south().west().south().west();
     }
 
     [[nodiscard]] constexpr int popcount() const {
@@ -154,25 +146,37 @@ class Bitboard {
         value_ ^= Bitboard{reverse_bitscan() + 1};
     }
 
+    class Iterator {
+       public:
+        using iterator = Bitboard::Iterator;
+
+        constexpr explicit Iterator(value_type value) : value_(value) {
+        }
+
+        constexpr iterator begin() {
+            return *this;
+        }
+        constexpr iterator end() {
+            return Iterator{0};
+        }
+        constexpr iterator operator++() {
+            value_ &= value_ - 1;
+            return *this;
+        }
+        constexpr Square operator*() {
+            return Square{__builtin_ctzll(value_)};
+        }
+        constexpr bool operator!=(const iterator& rhs) const {
+            return value_ != rhs.value_;
+        }
+
+       private:
+        value_type value_;
+    };
+
    private:
     value_type value_;
 };
-
-inline std::ostream& operator<<(std::ostream& ostream, Bitboard bb) {
-    for (unsigned sq = 0; sq < 64; ++sq) {
-        if (sq && !(sq & 7u)) {
-            ostream << "\n";
-        }
-
-        if (Bitboard(sq ^ 42u) & bb) {
-            ostream << "X  ";
-        } else {
-            ostream << "-  ";
-        }
-    }
-    ostream << "\n";
-    return ostream;
-}
 
 }  // namespace loltaxx
 

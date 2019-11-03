@@ -40,11 +40,10 @@ class Square : public MetaValueType<int> {
         return *this;
     }
 
-    constexpr File file() const { return File{value() & 7}; }
-    constexpr Rank rank() const { return Rank{value() >> 3}; }
-    constexpr Square flipped() const { return Square{value() ^ 42}; }
+    [[nodiscard]] constexpr File file() const { return File{value() % 7}; }
+    [[nodiscard]] constexpr Rank rank() const { return Rank{value() / 7}; }
 
-    std::string to_str() const {
+    [[nodiscard]] std::string to_str() const {
         return std::string{file().to_char(), rank().to_char()};
     }
 

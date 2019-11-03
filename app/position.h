@@ -1,6 +1,7 @@
 #ifndef LOLTAXX_POSITION_H
 #define LOLTAXX_POSITION_H
 
+#include <cassert>
 #include <sstream>
 
 #include "bitboard.h"
@@ -9,6 +10,12 @@
 
 namespace loltaxx {
 
+namespace constants {
+
+static std::string STARTPOS_FEN = "x5o/7/7/7/7/7/o5x x 0";
+
+}  // namespace constants
+
 class Position {
    private:
     Position() : side_to_move_(constants::CROSS), halfmoves_(0) {
@@ -16,9 +23,9 @@ class Position {
 
    public:
     explicit Position(const std::string& fen_str) : Position() {
-        piece_bb_[0] = Bitboard{0};
-        piece_bb_[1] = Bitboard{0};
-        gaps_ = Bitboard{0};
+        piece_bb_[0] = Bitboard{std::uint64_t(0)};
+        piece_bb_[1] = Bitboard{std::uint64_t(0)};
+        gaps_ = Bitboard{std::uint64_t(0)};
 
         std::istringstream fen_stream{fen_str};
         std::string fen_part;
@@ -32,12 +39,12 @@ class Position {
             } else if (c == '/') {
                 curr_sq -= 14;
             } else if (c == '-') {
-                gaps_ ^= Bitboard{curr_sq};
+                gaps_ |= Bitboard{curr_sq};
                 ++curr_sq;
             } else {
                 auto piece = Piece::from(c);
                 if (piece) {
-                    put_piece(*piece, curr_sq);
+                    piece_bb_[*piece] |= Bitboard{curr_sq};
                 }
                 ++curr_sq;
             }
@@ -58,57 +65,53 @@ class Position {
         }
     }
 
-    [[nodiscard]] MoveList generate_legal_moves() const {
+    [[nodiscard]] MoveList legal_moves() const {
         MoveList move_list;
 
         Bitboard us = piece_bb_[side_to_move_];
-        Bitboard them = piece_bb_[!side_to_move_];
+        Bitboard occupancy = us | piece_bb_[!side_to_move_];
+        Bitboard empty = ~(occupancy | gaps_);
 
-        Bitboard put_piece_bb = us.adjacent() & ~gaps_;
-        Bitboard move_piece_bb = us.jumps() & ~gaps_;
-        Bitboard opponent_capture_bb = them.adjacent();
-
-        Bitboard capture_put_bb = put_piece_bb & opponent_capture_bb;
-        for (Square sq = capture_put_bb.forward_bitscan(); capture_put_bb;
-             capture_put_bb.forward_popbit()) {
-            move_list.add(Move{sq, Move::IsCapture::TRUE});
+        Bitboard put_piece_bb = us.adjacent() & empty;
+        for (Square sq : Bitboard::Iterator{put_piece_bb}) {
+            move_list.add(Move{sq});
         }
 
-        Bitboard non_capture_put_bb = put_piece_bb ^ capture_put_bb;
-        for (Square sq = non_capture_put_bb.forward_bitscan(); non_capture_put_bb;
-             non_capture_put_bb.forward_popbit()) {
-            move_list.add(Move{sq, Move::IsCapture::FALSE});
+        for (Square from : Bitboard::Iterator{us}) {
+            Bitboard move_piece_bb = Bitboard{from}.jumps() & empty;
+            for (Square to : Bitboard::Iterator{move_piece_bb}) {
+                move_list.add(Move{from, to});
+            }
         }
 
-        for (Square from = us.forward_bitscan(); us; us.forward_popbit()) {
-            Bitboard capture_moves = move_piece_bb & opponent_capture_bb;
-            for (Square to = capture_moves.forward_bitscan(); capture_moves;
-                 capture_moves.forward_popbit()) {
-                move_list.add(Move{from, to, Move::IsCapture::TRUE});
-            }
-
-            Bitboard non_capture_moves = move_piece_bb ^ capture_moves;
-            for (Square to = non_capture_moves.forward_bitscan(); non_capture_moves;
-                 non_capture_moves.forward_popbit()) {
-                move_list.add(Move{from, to, Move::IsCapture::FALSE});
-            }
+        if (move_list.empty() && us) {
+            move_list.add(constants::MOVE_NULL);
         }
 
         return move_list;
     }
 
-   protected:
-    constexpr void put_piece(Piece side, Square square) {
-        piece_bb_[side] ^= Bitboard{square};
-    }
-    constexpr void remove_piece(Piece side, Square square) {
-        piece_bb_[side] &= ~Bitboard{square};
-    }
-    constexpr void move_piece(Piece side, Square from, Square to) {
-        piece_bb_[side] ^= (Bitboard{from}) | (Bitboard{to});
+    void make_move(Move move) {
+        if (move == constants::MOVE_NULL) {
+            side_to_move_ = !side_to_move_;
+            return;
+        }
+
+        Square from = move.from_square();
+        Square to = move.to_square();
+
+        Bitboard captured = Bitboard{to}.adjacent() & piece_bb_[!side_to_move_];
+        piece_bb_[!side_to_move_] ^= captured;
+        piece_bb_[side_to_move_] ^= (Bitboard{from}) | (Bitboard{to}) | captured;
+
+        if (captured || from == to) {
+            halfmoves_ = 0;
+        }
+
+        side_to_move_ = !side_to_move_;
     }
 
-   private:
+   public:
     Bitboard piece_bb_[2];
     Bitboard gaps_;
     Piece side_to_move_;

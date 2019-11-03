@@ -13,40 +13,21 @@ class Move {
    private:
     enum BitOpLookup : std::uint32_t
     {
-        TO_SQUARE_SHIFT = 6,
-        MOVE_TYPE_SHIFT = 12,
-        IS_CAPTURE_SHIFT = 13,
-
-        MOVE_TYPE_MASK = 3 << MOVE_TYPE_SHIFT,
-        IS_CAPTURE_MASK = 3 << IS_CAPTURE_SHIFT
+        TO_SQUARE_SHIFT = 6
     };
 
    public:
-    enum class Type : std::uint8_t
-    {
-        NONE,
-        MOVE,
-        PUT
-    };
-    enum class IsCapture : std::uint8_t
-    {
-        NONE,
-        FALSE,
-        TRUE
-    };
-
     using value_type = int;
 
+    constexpr Move() : value_(49u | (49u << TO_SQUARE_SHIFT)) {
+    }
     constexpr explicit Move(std::uint32_t value) : value_(value) {
     }
-    constexpr Move(Square from_square, Square to_square, IsCapture is_capture = IsCapture::NONE)
-        : value_(from_square.value() | (to_square.value() << TO_SQUARE_SHIFT) |
-                 (std::uint32_t(is_capture) << IS_CAPTURE_SHIFT)) {
+    constexpr Move(Square from_square, Square to_square)
+        : value_(from_square.value() | (to_square.value() << TO_SQUARE_SHIFT)) {
     }
-    constexpr Move(Square square, IsCapture is_capture = IsCapture::NONE)
-        : value_(square.value() | (std::uint32_t(49) << TO_SQUARE_SHIFT) |
-                 (std::uint32_t(1) << MOVE_TYPE_SHIFT) |
-                 (std::uint32_t(is_capture) << IS_CAPTURE_SHIFT)) {
+    constexpr explicit Move(Square square)
+        : value_(square.value() | (square.value() << TO_SQUARE_SHIFT)) {
     }
 
     static std::optional<Move> from(const std::string& str) {
@@ -76,25 +57,25 @@ class Move {
     }
 
     [[nodiscard]] std::string to_str() const {
-        auto from_sq = from_square();
+        Square from_sq = from_square();
         if (from_sq == constants::SQUARE_NULL) {
             return "0000";
         }
 
-        auto to_sq = to_square();
-        if (to_sq == constants::SQUARE_NULL) {
+        Square to_sq = to_square();
+        if (from_sq == to_sq) {
             return from_sq.to_str();
         }
 
-        std::string move_str = from_square().to_str() + to_square().to_str();
+        std::string move_str = from_sq.to_str() + to_sq.to_str();
         return move_str;
     }
 
     [[nodiscard]] constexpr bool operator==(const Move rhs) const {
-        return value_sans_type() == rhs.value_sans_type();
+        return value() == rhs.value();
     }
     [[nodiscard]] constexpr bool operator!=(const Move rhs) const {
-        return value_sans_type() != rhs.value_sans_type();
+        return value() != rhs.value();
     }
 
     [[nodiscard]] constexpr Square from_square() const {
@@ -103,22 +84,7 @@ class Move {
     [[nodiscard]] constexpr Square to_square() const {
         return Square{(value() & 0xfc0) >> 6};
     }
-    [[nodiscard]] constexpr Move::Type type() const {
-        return static_cast<Move::Type>((value() & MOVE_TYPE_MASK) >> MOVE_TYPE_SHIFT);
-    }
-    [[nodiscard]] constexpr Move::IsCapture is_capture() const {
-        return static_cast<Move::IsCapture>((value() & IS_CAPTURE_MASK) >> IS_CAPTURE_SHIFT);
-    }
 
-    [[nodiscard]] constexpr value_type value_sans_type() const {
-        return value_ & ~MOVE_TYPE_MASK;
-    }
-    [[nodiscard]] constexpr value_type value_sans_capture() const {
-        return value_ & ~IS_CAPTURE_MASK;
-    }
-    [[nodiscard]] constexpr value_type value_sans_type_and_capture() const {
-        return value_ & ~IS_CAPTURE_MASK & ~MOVE_TYPE_MASK;
-    }
     [[nodiscard]] constexpr value_type value() const {
         return value_;
     }
@@ -127,46 +93,38 @@ class Move {
     value_type value_;
 };
 
+namespace constants {
+
+constexpr Move MOVE_NULL = Move{SQUARE_NULL};
+
+}  // namespace constants
+
 class MoveList {
    public:
-    using value_type = std::vector<Move>;
-    using iterator = value_type::iterator;
-    using const_iterator = value_type::const_iterator;
+    using value_type = Move[256];
+    using iterator = Move*;
 
-    MoveList() {
-        values_.reserve(32);
+    MoveList() : size_(0) {
     }
 
     iterator begin() {
-        return values_.begin();
+        return values_;
     }
     iterator end() {
-        return values_.end();
-    }
-    const_iterator cbegin() const {
-        return values_.cbegin();
-    }
-    const_iterator cend() const {
-        return values_.cend();
+        return values_ + size();
     }
 
     void pop_back() {
-        values_.pop_back();
+        --size_;
     }
     void add(Move move) {
-        values_.push_back(move);
-    }
-    void add(const MoveList& move_list) noexcept {
-        values_.reserve(size() + move_list.size());
-        for (auto iter = move_list.cbegin(); iter != move_list.cend(); ++iter) {
-            add(*iter);
-        }
+        values_[size_] = move;
+        ++size_;
     }
     template <class F>
     void sort(F move_evaluator) {
         auto& moves = values_mut_ref();
-        std::vector<int> scores;
-        scores.reserve(values_.size());
+        int scores[256];
         for (int i = 0; i < size(); ++i) {
             scores[i] = move_evaluator(moves[i]);
         }
@@ -186,20 +144,22 @@ class MoveList {
             moves[j] = moving_move;
         }
     }
-    void clear() noexcept {
-        values_.clear();
-    }
     bool empty() const noexcept {
-        return values_.empty();
+        return size_ == 0;
     }
     int size() const {
-        return values_.size();
+        return size_;
     }
     const value_type& values() const {
         return values_;
     }
     bool contains(Move move) const {
-        return std::find(cbegin(), cend(), move) != cend();
+        for (int i = 0; i < size_; ++i) {
+            if (move == values_[i]) {
+                return true;
+            }
+        }
+        return false;
     }
 
    protected:
@@ -209,6 +169,7 @@ class MoveList {
 
    private:
     value_type values_;
+    int size_;
 };
 
 inline std::ostream& operator<<(std::ostream& ostream, Move move) {
