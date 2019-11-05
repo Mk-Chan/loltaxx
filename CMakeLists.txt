@@ -5,7 +5,7 @@ project(loltaxx)
 ###
 # Find packages
 ###
-
+find_package(Threads REQUIRED)
 ###
 
 ###
@@ -41,10 +41,11 @@ add_executable(
     loltaxx
     app/main.cpp
 )
-target_link_libraries(loltaxx PRIVATE)
+target_link_libraries(loltaxx PRIVATE Threads::Threads)
 
 # perft
 add_executable(
     perft
     app/perft.cpp
 )
+target_link_libraries(perft PRIVATE Threads::Threads)

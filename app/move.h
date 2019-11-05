@@ -104,27 +104,31 @@ class MoveList {
     using value_type = Move[256];
     using iterator = Move*;
 
-    MoveList() : size_(0) {
+    constexpr MoveList() : size_(0) {
     }
 
-    iterator begin() {
+    [[nodiscard]] constexpr iterator begin() {
         return values_;
     }
-    iterator end() {
+    [[nodiscard]] constexpr iterator end() {
         return values_ + size();
     }
 
-    void pop_back() {
+    constexpr Move operator[](int idx) const {
+        return values_[idx];
+    }
+
+    constexpr void pop_back() {
         --size_;
     }
-    void add(Move move) {
+    constexpr void add(Move move) {
         values_[size_] = move;
         ++size_;
     }
     template <class F>
-    void sort(F move_evaluator) {
+    constexpr void sort(F move_evaluator) {
         auto& moves = values_mut_ref();
-        int scores[256];
+        int scores[256]{};
         for (int i = 0; i < size(); ++i) {
             scores[i] = move_evaluator(moves[i]);
         }
@@ -144,16 +148,16 @@ class MoveList {
             moves[j] = moving_move;
         }
     }
-    bool empty() const noexcept {
+    [[nodiscard]] constexpr bool empty() const noexcept {
         return size_ == 0;
     }
-    int size() const {
+    [[nodiscard]] constexpr int size() const {
         return size_;
     }
-    const value_type& values() const {
+    [[nodiscard]] constexpr const value_type& values() const {
         return values_;
     }
-    bool contains(Move move) const {
+    [[nodiscard]] constexpr bool contains(Move move) const {
         for (int i = 0; i < size_; ++i) {
             if (move == values_[i]) {
                 return true;
@@ -163,7 +167,7 @@ class MoveList {
     }
 
    protected:
-    value_type& values_mut_ref() {
+    constexpr value_type& values_mut_ref() {
         return values_;
     }
 
