@@ -1,17 +1,18 @@
 cmake_minimum_required(VERSION 3.12)
 
-project(app)
+project(loltaxx)
 
 ###
 # Find packages
 ###
-find_package(Catch2 CONFIG REQUIRED)
+
 ###
 
 ###
 # Base directory relative includes for everyone
 ###
 include_directories(.)
+include_directories(third_party)
 ###
 
 ###
@@ -33,29 +34,17 @@ endif ()
 ###
 
 ###
-# Tests
-###
-enable_testing()
-add_test(app_test_build "${CMAKE_COMMAND}" --build "${CMAKE_BINARY_DIR}" --target app_test)
-add_test(app_test_run app_test)
-set_tests_properties(app_test_run PROPERTIES DEPENDS app_test_build)
-###
-
-###
 # Targets
 ###
-# app
+# engine
 add_executable(
-    app
+    loltaxx
     app/main.cpp
 )
-target_link_libraries(app PRIVATE)
+target_link_libraries(loltaxx PRIVATE)
 
-# app_test
+# perft
 add_executable(
-    app_test
-    test/test.cpp
-    test/app/example.cpp
+    perft
+    app/perft.cpp
 )
-target_link_libraries(app_test PRIVATE Catch2::Catch2)
-###

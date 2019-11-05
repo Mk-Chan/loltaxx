@@ -9,7 +9,7 @@ packages="$(tr '\n' ' ' <<< "$(cat "${DIR}/vcpkg-packages.txt")")"
 "${DIR}/tools/vcpkg/vcpkg" install ${packages}
 
 TARGET=${1}
-BUILD_TYPE=${2:-Debug}
+BUILD_TYPE=${2:-Release}
 BUILD_TYPE_LOWERCASE="$(tr '[:upper:]' '[:lower:]' <<< "${BUILD_TYPE}")"
 CMAKE_BUILD_TYPE="$(tr '[:lower:]' '[:upper:]' <<< "${BUILD_TYPE_LOWERCASE:0:1}")${BUILD_TYPE_LOWERCASE:1}"
 
