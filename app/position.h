@@ -4,9 +4,11 @@
 #include <cassert>
 #include <sstream>
 
+#include "internal/zobrist.h"
+
 #include "bitboard.h"
-#include "color.h"
 #include "move.h"
+#include "piece.h"
 
 namespace loltaxx {
 
@@ -63,6 +65,8 @@ class Position {
             char* end;
             halfmoves_ = std::strtol(fen_part_cstr, &end, 10);
         }
+
+        hashkey = calculate_hash();
     }
 
     [[nodiscard]] MoveList legal_moves() const {
@@ -94,6 +98,7 @@ class Position {
     void make_move(Move move) {
         if (move == constants::MOVE_NULL) {
             side_to_move_ = !side_to_move_;
+            hashkey ^= constants::SIDE_TO_MOVE_KEY;
             return;
         }
 
@@ -104,11 +109,37 @@ class Position {
         piece_bb_[!side_to_move_] ^= captured;
         piece_bb_[side_to_move_] ^= (Bitboard{from}) | (Bitboard{to}) | captured;
 
-        if (captured || from == to) {
+        ++halfmoves_;
+
+        if (from == to) {
             halfmoves_ = 0;
+            hashkey ^= constants::PIECE_SQUARE_KEYS[side_to_move_][to];
+        } else {
+            hashkey ^= constants::PIECE_SQUARE_KEYS[side_to_move_][from] ^
+                       constants::PIECE_SQUARE_KEYS[side_to_move_][to];
+        }
+        if (captured) {
+            for (Square sq : Bitboard::Iterator{captured}) {
+                hashkey ^= constants::PIECE_SQUARE_KEYS[!side_to_move_][sq] ^
+                           constants::PIECE_SQUARE_KEYS[side_to_move_][sq];
+            }
         }
 
         side_to_move_ = !side_to_move_;
+        hashkey ^= constants::SIDE_TO_MOVE_KEY;
+    }
+
+    std::uint64_t calculate_hash() {
+        std::uint64_t key{0};
+        for (Piece piece : constants::PIECES) {
+            for (Square sq : Bitboard::Iterator{piece_bb_[piece]}) {
+                key ^= constants::PIECE_SQUARE_KEYS[piece][sq];
+            }
+        }
+        if (side_to_move_ == constants::KNOT) {
+            key ^= constants::SIDE_TO_MOVE_KEY;
+        }
+        return key;
     }
 
    public:
@@ -116,6 +147,7 @@ class Position {
     Bitboard gaps_;
     Piece side_to_move_;
     int halfmoves_;
+    std::uint64_t hashkey;
 };
 
 }  // namespace loltaxx

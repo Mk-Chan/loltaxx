@@ -59,7 +59,7 @@ namespace constants {
 
 constexpr static Piece CROSS{Piece::Value::CROSS};
 constexpr static Piece KNOT{Piece::Value::KNOT};
-constexpr static Piece COLORS[]{CROSS, KNOT};
+constexpr static Piece PIECES[]{CROSS, KNOT};
 
 }  // namespace constants
 
