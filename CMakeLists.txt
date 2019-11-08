@@ -40,6 +40,8 @@ endif ()
 add_executable(
     loltaxx
     app/main.cpp
+    app/eval.cpp
+    app/search.cpp
 )
 target_link_libraries(loltaxx PRIVATE Threads::Threads)
 

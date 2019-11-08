@@ -100,8 +100,11 @@ constexpr Move MOVE_NULL = Move{SQUARE_NULL};
 }  // namespace constants
 
 class MoveList {
+   private:
+    constexpr static int MAX_SIZE = 256;
+
    public:
-    using value_type = Move[256];
+    using value_type = Move[MAX_SIZE];
     using iterator = Move*;
 
     constexpr MoveList() : size_(0) {
@@ -124,6 +127,17 @@ class MoveList {
     constexpr void add(Move move) {
         values_[size_] = move;
         ++size_;
+    }
+    constexpr void add(MoveList move_list) {
+        for (Move move : move_list) {
+            if (size_ >= MAX_SIZE) {
+                break;
+            }
+            add(move);
+        }
+    }
+    constexpr void clear() {
+        size_ = 0;
     }
     template <class F>
     constexpr void sort(F move_evaluator) {
@@ -148,7 +162,7 @@ class MoveList {
             moves[j] = moving_move;
         }
     }
-    [[nodiscard]] constexpr bool empty() const noexcept {
+    [[nodiscard]] constexpr bool empty() const {
         return size_ == 0;
     }
     [[nodiscard]] constexpr int size() const {

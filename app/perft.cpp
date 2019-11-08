@@ -46,8 +46,8 @@ std::uint64_t perft(Position pos, int depth) {
         return count_moves(pos);
     }
 
-    loltaxx::PerftTTEntry entry = loltaxx::perft_tt.probe(pos.hashkey);
-    if (entry.get_depth() == depth && entry.get_key() == pos.hashkey) {
+    loltaxx::PerftTTEntry entry = loltaxx::perft_tt.probe(pos.hash_);
+    if (entry.get_depth() == depth && entry.get_key() == pos.hash_) {
         ++tt_hits;
         return entry.get_nodes();
     }
@@ -61,7 +61,7 @@ std::uint64_t perft(Position pos, int depth) {
         count += perft(child_pos, depth - 1);
     }
 
-    loltaxx::perft_tt.write(depth, count, pos.hashkey);
+    loltaxx::perft_tt.write(depth, count, pos.hash_);
 
     return count;
 }

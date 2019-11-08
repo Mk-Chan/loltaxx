@@ -5,8 +5,10 @@ build/
 # Tools
 tools/
 
-# IDEs
+# IDEs and Editors
 .idea/
+.vscode/
+.lvimrc
 
 # Prerequisites
 *.d

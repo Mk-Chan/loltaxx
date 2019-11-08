@@ -66,7 +66,7 @@ class Position {
             halfmoves_ = std::strtol(fen_part_cstr, &end, 10);
         }
 
-        hashkey = calculate_hash();
+        hash_ = calculate_hash();
     }
 
     [[nodiscard]] MoveList legal_moves() const {
@@ -98,7 +98,7 @@ class Position {
     void make_move(Move move) {
         if (move == constants::MOVE_NULL) {
             side_to_move_ = !side_to_move_;
-            hashkey ^= constants::SIDE_TO_MOVE_KEY;
+            hash_ ^= constants::SIDE_TO_MOVE_KEY;
             return;
         }
 
@@ -113,20 +113,20 @@ class Position {
 
         if (from == to) {
             halfmoves_ = 0;
-            hashkey ^= constants::PIECE_SQUARE_KEYS[side_to_move_][to];
+            hash_ ^= constants::PIECE_SQUARE_KEYS[side_to_move_][to];
         } else {
-            hashkey ^= constants::PIECE_SQUARE_KEYS[side_to_move_][from] ^
-                       constants::PIECE_SQUARE_KEYS[side_to_move_][to];
+            hash_ ^= constants::PIECE_SQUARE_KEYS[side_to_move_][from] ^
+                     constants::PIECE_SQUARE_KEYS[side_to_move_][to];
         }
         if (captured) {
             for (Square sq : Bitboard::Iterator{captured}) {
-                hashkey ^= constants::PIECE_SQUARE_KEYS[!side_to_move_][sq] ^
-                           constants::PIECE_SQUARE_KEYS[side_to_move_][sq];
+                hash_ ^= constants::PIECE_SQUARE_KEYS[!side_to_move_][sq] ^
+                         constants::PIECE_SQUARE_KEYS[side_to_move_][sq];
             }
         }
 
         side_to_move_ = !side_to_move_;
-        hashkey ^= constants::SIDE_TO_MOVE_KEY;
+        hash_ ^= constants::SIDE_TO_MOVE_KEY;
     }
 
     std::uint64_t calculate_hash() {
@@ -142,12 +142,28 @@ class Position {
         return key;
     }
 
-   public:
+    [[nodiscard]] Bitboard pieces(Piece side) const {
+        return piece_bb_[side];
+    }
+    [[nodiscard]] Bitboard gaps() const {
+        return gaps_;
+    }
+    [[nodiscard]] Piece side_to_move() const {
+        return side_to_move_;
+    }
+    [[nodiscard]] int halfmoves() const {
+        return halfmoves_;
+    }
+    [[nodiscard]] std::uint64_t hash() const {
+        return hash_;
+    }
+
+   private:
     Bitboard piece_bb_[2];
     Bitboard gaps_;
     Piece side_to_move_;
     int halfmoves_;
-    std::uint64_t hashkey;
+    std::uint64_t hash_;
 };
 
 }  // namespace loltaxx
