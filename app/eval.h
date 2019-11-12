@@ -5,8 +5,6 @@
 
 namespace loltaxx {
 
-inline int MATERIAL = 1000;
-
 extern int eval(Position* pos);
 
 }  // namespace loltaxx

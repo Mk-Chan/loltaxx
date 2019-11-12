@@ -115,7 +115,8 @@ class SearchGlobals {
                 if (curr_time().count() - start_time_->count() >= end_time) {
                     stop_flag_ = true;
                 }
-            } else if (go_parameters_->movetime() && time_diff >= go_parameters_->movetime()) {
+            } else if (go_parameters_->movetime() &&
+                       time_diff >= *go_parameters_->movetime() - 150) {
                 stop_flag_ = true;
             }
         }

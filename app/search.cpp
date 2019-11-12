@@ -5,23 +5,33 @@
 
 namespace loltaxx::search {
 
-TranspositionTable tt{256};
+TranspositionTable tt{1024};
 
 void sort_moves(Position pos, MoveList* move_list, std::optional<Move> tt_move = {}) {
-    Bitboard them = pos.pieces(pos.side_to_move());
     move_list->sort([&](Move move) {
         if (tt_move && *tt_move == move) {
-            return 10000;
+            return 1000000;
         } else {
-            Bitboard captured = Bitboard{move.to_square()}.adjacent() & them;
-            if (captured) {
-                return 5000 + captured.popcount();
+            Square to = move.to_square();
+            Bitboard from_bb{move.from_square()};
+            Bitboard to_bb{to};
+            Piece stm = pos.side_to_move();
+
+            Bitboard captured = Bitboard{to}.adjacent() & pos.pieces(!stm);
+
+            int piece_diff = (pos.pieces(stm) ^ (from_bb | to_bb | captured)).popcount() -
+                             (pos.pieces(!stm) ^ captured).popcount();
+            if (piece_diff > 1) {
+                return 10000 + piece_diff;
             } else {
-                return 0;
+                return piece_diff;
             }
         }
     });
 }
+
+std::uint64_t cutoffs = 0;
+std::uint64_t first_cutoffs = 0;
 
 SearchResult search_impl(Position pos, int alpha, int beta, int depth, int ply, SearchGlobals* sg) {
     sg->increment_nodes();
@@ -59,10 +69,13 @@ SearchResult search_impl(Position pos, int alpha, int beta, int depth, int ply, 
         tt_move = Move{tt_entry.get_move()};
         int tt_score = tt_entry.get_score();
         int tt_flag = tt_entry.get_flag();
-        if (tt_entry.get_depth() == depth) {
+        if (tt_entry.get_depth() >= depth) {
             if ((tt_flag == TTConstants::FLAG_LOWER && tt_score >= beta) ||
-                (tt_flag == TTConstants::FLAG_UPPER && tt_score <= alpha)) {
-                return {tt_score, {}};
+                (tt_flag == TTConstants::FLAG_UPPER && tt_score < alpha) ||
+                (tt_flag == TTConstants::FLAG_EXACT)) {
+                MoveList mlist;
+                mlist.add(tt_move);
+                return {tt_score, mlist};
             }
         }
     }
@@ -80,11 +93,24 @@ SearchResult search_impl(Position pos, int alpha, int beta, int depth, int ply, 
 
     MoveList pv;
     int best_score = -INFINITE;
+    int move_num = 0;
     for (Move move : move_list) {
         Position child = pos;
         child.make_move(move);
+        ++move_num;
 
-        auto result = -search_impl(child, -beta, -alpha, depth - 1, ply + 1, sg);
+        int depth_left = depth - 1;
+
+        SearchResult result{0, {}};
+        if (move_num == 1) {
+        pv_search:
+            result = -search_impl(child, -beta, -alpha, depth_left, ply + 1, sg);
+        } else {
+            result = -search_impl(child, -alpha - 1, -alpha, depth_left, ply + 1, sg);
+            if (result.score > alpha) {
+                goto pv_search;
+            }
+        }
 
         if (ply && sg->stop()) {
             return SearchResult{0, {}};
@@ -104,6 +130,10 @@ SearchResult search_impl(Position pos, int alpha, int beta, int depth, int ply, 
                 }
 
                 if (alpha >= beta) {
+                    ++cutoffs;
+                    if (move_num == 1) {
+                        ++first_cutoffs;
+                    }
                     break;
                 }
             }
@@ -111,7 +141,7 @@ SearchResult search_impl(Position pos, int alpha, int beta, int depth, int ply, 
     }
 
     int tt_flag = best_score >= beta ? TTConstants::FLAG_LOWER
-                                     : best_score <= alpha ? TTConstants::FLAG_UPPER : FLAG_EXACT;
+                                     : best_score < alpha ? TTConstants::FLAG_UPPER : FLAG_EXACT;
     tt.write(pv[0].value(), tt_flag, depth, best_score, hash);
 
     return {best_score, pv};
@@ -168,6 +198,7 @@ std::optional<loltaxx::Move> best_move_search(loltaxx::Position pos,
             {"nps", nps},
             {"nodes", nodes},
         }};
+        // std::cout << "fbf rate: " << first_cutoffs * 100llu / double(cutoffs) << "\n";
 
         std::vector<std::string> str_move_list;
         str_move_list.reserve(pv->size());
