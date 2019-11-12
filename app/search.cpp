@@ -5,7 +5,7 @@
 
 namespace loltaxx::search {
 
-TranspositionTable tt{1024};
+TranspositionTable tt{128};
 
 void sort_moves(Position pos, MoveList* move_list, std::optional<Move> tt_move = {}) {
     move_list->sort([&](Move move) {
